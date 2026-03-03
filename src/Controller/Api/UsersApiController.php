@@ -4,49 +4,67 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Domain\Api\Dto\User\Request\CreateUserRequest;
+use App\Domain\Api\Dto\User\Request\DeleteUserRequest;
+use App\Domain\Api\Dto\User\Request\UpdateUserRequest;
+use App\Domain\Api\User\UserDataConverter;
 use App\Domain\User\Create\UserCreator;
 use App\Domain\User\Delete\UserDeleter;
 use App\Domain\User\Provider\UserProvider;
 use App\Domain\User\Update\UserUpdater;
-use App\Dto\User\CreateUserRequest;
-use App\Dto\User\DeleteUserRequest;
-use App\Dto\User\UpdateUserRequest;
 use App\Entity\User;
-use App\Service\UserDataConverter;
-use App\Service\UsersDataProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 
 #[Route('/v1/api/users')]
-class UsersController extends AbstractController
+class UsersApiController extends AbstractController
 {
-    #[Route(name: 'v1_api_users_get', methods: ['GET'])]
+    #[Route('/{id<\d+>}', name: 'v1_api_users_get', methods: ['GET'])]
     public function getUsers(
-        UsersDataProvider $usersDataProvider,
+        int $id,
         Security $security,
+        UserProvider $userProvider,
+        UserDataConverter $userDataConverter,
     ): JsonResponse {
         $currentUser = $security->getUser();
         if (!$currentUser instanceof User) {
             throw new UnauthorizedHttpException('Authentication required.');
         }
 
-        $usersData = $usersDataProvider->provideAll($currentUser);
+        if ($currentUser->getId() !== $id) {
+            if (!$currentUser->isRoot()) {
+                throw new AccessDeniedHttpException('You do not have rights to get user.');
+            }
 
-        return $this->json(['data' => $usersData]);
+            $requestedUser = $userProvider->provideById($id);
+        } else {
+            $requestedUser = $currentUser;
+        }
+
+        if (!$requestedUser) {
+            throw new BadRequestException('User not found by id "' . $id . '"');
+        }
+
+        $requestedUserResponse = $userDataConverter->convert($requestedUser);
+
+        return $this->json([
+            'data' => $requestedUserResponse,
+        ]);
     }
 
     #[Route(name: 'v1_api_users_post', methods: ['POST'])]
     public function createUser(
         #[MapRequestPayload] CreateUserRequest $createUserRequest,
+        Security $security,
         UserCreator $userCreator,
         UserDataConverter $userDataConverter,
-        Security $security,
+        UserProvider $userProvider,
     ): JsonResponse {
         $currentUser = $security->getUser();
         if (!$currentUser instanceof User) {
@@ -57,6 +75,10 @@ class UsersController extends AbstractController
             throw new AccessDeniedHttpException('You do not have rights to create user.');
         }
 
+        if ($user = $userProvider->provideByLogin($createUserRequest->login)) {
+            throw new BadRequestException('User with login "' . $createUserRequest->login . '" already exists');
+        }
+
         $newUser = $userCreator->createUser(
             $createUserRequest->login,
             $createUserRequest->pass,
@@ -64,11 +86,11 @@ class UsersController extends AbstractController
             $createUserRequest->role
         );
 
-        $newUserData = $userDataConverter->convert($newUser);
+        $newUserResponse = $userDataConverter->convert($newUser);
 
         return $this->json([
             'data' => [
-                $newUserData,
+                $newUserResponse,
             ],
         ]);
     }
@@ -76,19 +98,19 @@ class UsersController extends AbstractController
     #[Route(name: 'v1_api_users_put', methods: ['PUT'])]
     public function updateUser(
         #[MapRequestPayload] UpdateUserRequest $updateUserRequest,
+        Security $security,
         UserProvider $userProvider,
         UserUpdater $userUpdater,
         UserDataConverter $userDataConverter,
-        Security $security,
     ): JsonResponse {
         $currentUser = $security->getUser();
         if (!$currentUser instanceof User) {
             throw new UnauthorizedHttpException('Authentication required.');
         }
 
-        $userForUpdate = $userProvider->provideByLoginAndPass($updateUserRequest->login, $updateUserRequest->pass);
+        $userForUpdate = $userProvider->provideById($updateUserRequest->id);
         if (!$userForUpdate) {
-            throw new BadRequestException('User not found for login and password');
+            throw new BadRequestException('User not found for id "' . $updateUserRequest->id . '"');
         }
 
         if ($currentUser->getId() !== $userForUpdate->getId() && !$currentUser->isRoot()) {
@@ -113,7 +135,7 @@ class UsersController extends AbstractController
 
     #[Route(name: 'v1_api_users_delete', methods: ['DELETE'])]
     public function deleteUser(
-        DeleteUserRequest $deleteUserRequest,
+        #[MapRequestPayload] DeleteUserRequest $deleteUserRequest,
         UserProvider $userProvider,
         UserDeleter $userDeleter,
         Security $security,
@@ -129,7 +151,7 @@ class UsersController extends AbstractController
 
         $user = $userProvider->provideById($deleteUserRequest->id);
         if (!$user) {
-            throw new BadRequestException('User not found for id');
+            throw new BadRequestException('User not found by id "' . $deleteUserRequest->id . '"');
         }
 
         $userDeleter->deleteUserById($user);

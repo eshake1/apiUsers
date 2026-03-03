@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Dto\User;
+namespace App\Domain\Api\Dto\User\Request;
 
 use App\Domain\User\UserRole;
 use Symfony\Component\Validator\Constraints as Assert;

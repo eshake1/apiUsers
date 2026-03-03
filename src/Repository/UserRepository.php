@@ -16,7 +16,7 @@ class UserRepository
     ) {
     }
 
-    public function findById(string $id): ?User
+    public function findById(int $id): ?User
     {
         return $this->getEntityRepository()->find($id);
     }
@@ -26,22 +26,20 @@ class UserRepository
         return $this->getEntityRepository()->findAll();
     }
 
-    public function findOneByLoginAndPass(string $login, string $password): ?User
+    public function findByLogin(string $login): ?User
     {
-        return $this->getEntityRepository()->findOneBy(['login' => $login, 'pass' => $password]);
+        return $this->getEntityRepository()->findOneBy(['login' => $login]);
     }
 
     public function create(
         string $login,
-        string $pass,
         string $phone,
         UserRole $role,
     ): User {
         return new User(
             $login,
-            $pass,
             $phone,
-            $role,
+            $role
         );
     }
 

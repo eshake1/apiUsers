@@ -17,13 +17,12 @@ class UserProvider
     public function provideById(
         int $id,
     ): ?User {
-        return $this->userRepository->findOneByLoginAndPass($login, $password);
+        return $this->userRepository->findById($id);
     }
 
-    public function provideByLoginAndPass(
+    public function provideByLogin(
         string $login,
-        string $password,
     ): ?User {
-        return $this->userRepository->findOneByLoginAndPass($login, $password);
+        return $this->userRepository->findByLogin($login);
     }
 }

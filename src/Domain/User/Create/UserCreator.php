@@ -11,11 +11,13 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserCreator
 {
     public function __construct(
         private readonly UserRepository $userRepository,
+        private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -26,7 +28,10 @@ class UserCreator
         string $phone,
         UserRole $role,
     ): User {
-        $user = $this->userRepository->create($login, $pass, $phone, $role);
+        $user = $this->userRepository->create($login, $phone, $role);
+
+        $passwordHash = $this->passwordHasher->hashPassword($user, $pass);
+        $user->setPasswordHash($passwordHash);
 
         try {
             $this->userRepository->save($user);

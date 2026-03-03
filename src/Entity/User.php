@@ -6,12 +6,13 @@ namespace App\Entity;
 
 use App\Domain\User\UserRole;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'user')]
-#[ORM\UniqueConstraint(columns: ['login', 'pass'])]
-class User implements UserInterface
+#[ORM\UniqueConstraint(columns: ['login'])]
+class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     public const USER_ACL_ROLE = 'ROLE_USER';
     public const ROOT_ACL_ROLE = 'ROLE_ROOT';
@@ -24,26 +25,21 @@ class User implements UserInterface
     #[ORM\Column(type: 'string', length: 8)]
     private string $login;
 
-    #[ORM\Column(type: 'string', length: 8)]
-    private string $pass;
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $passwordHash;
 
     #[ORM\Column(type: 'string', length: 8)]
     private string $phone;
 
-    #[ORM\Column(
-        enumType: UserRole::class,
-        options: ['default' => UserRole::User],
-    )]
-    private UserRole $role = UserRole::User;
+    #[ORM\Column(enumType: UserRole::class)]
+    private UserRole $role;
 
     public function __construct(
         string $login,
-        string $pass,
         string $phone,
         UserRole $role,
     ) {
         $this->login = $login;
-        $this->pass = $pass;
         $this->phone = $phone;
         $this->role = $role;
     }
@@ -58,21 +54,19 @@ class User implements UserInterface
         return $this->login;
     }
 
-    public function setLogin(string $login): self
+    public function setLogin(string $login): void
     {
         $this->login = $login;
-        return $this;
     }
 
-    public function getPass(): string
+    public function getPassword(): ?string
     {
-        return $this->pass;
+        return $this->passwordHash;
     }
 
-    public function setPass(string $pass): self
+    public function setPasswordHash(string $passwordHash): void
     {
-        $this->pass = $pass;
-        return $this;
+        $this->passwordHash = $passwordHash;
     }
 
     public function getPhone(): string
@@ -80,20 +74,14 @@ class User implements UserInterface
         return $this->phone;
     }
 
-    public function setPhone(string $phone): self
+    public function setPhone(string $phone): void
     {
         $this->phone = $phone;
-        return $this;
     }
 
     public function getRole(): string
     {
         return $this->role->value;
-    }
-
-    public function setRole(UserRole $role): void
-    {
-        $this->role = $role;
     }
 
     public function getUserIdentifier(): string

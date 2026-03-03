@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace App\Domain\User\Update;
 
-use App\Domain\User\UserRole;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserUpdater
 {
     public function __construct(
         private readonly UserRepository $userRepository,
+        private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -30,9 +31,8 @@ class UserUpdater
             $userForUpdate->setLogin($login);
         }
 
-        if ($userForUpdate->getPass() !== $pass) {
-            $userForUpdate->setPass($pass);
-        }
+        $passwordHash = $this->passwordHasher->hashPassword($userForUpdate, $pass);
+        $userForUpdate->setPasswordHash($passwordHash);
 
         if ($userForUpdate->getPhone() !== $phone) {
             $userForUpdate->setPhone($phone);

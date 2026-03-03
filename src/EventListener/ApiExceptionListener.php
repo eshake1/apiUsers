@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace App\EventListener;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class ApiExceptionListener
 {
+    public function __construct(
+        private readonly LoggerInterface $logger,
+    ) {
+    }
+
     public function __invoke(ExceptionEvent $event): void
     {
         $request = $event->getRequest();
@@ -19,17 +25,21 @@ class ApiExceptionListener
 
         $exception = $event->getThrowable();
 
+        $this->logger->error($exception->getMessage(), [
+            'exception' => $exception,
+        ]);
+
         $status = 500;
         if ($exception instanceof HttpExceptionInterface) {
             $status = $exception->getStatusCode();
         }
 
-        $message = $status >= 500 ? 'Internal server error.' : $exception->getMessage();
+        $isServerError = $status >= 500;
 
         $event->setResponse(new JsonResponse([
             'error' => [
-                'code' => $status >= 500 ? 'SERVER_ERROR' : 'REQUEST_ERROR',
-                'message' => $message,
+                'code' => $isServerError ? 'SERVER_ERROR' : 'REQUEST_ERROR',
+                'message' => $isServerError ? 'Internal server error.' : $exception->getMessage(),
             ],
         ], $status));
     }
