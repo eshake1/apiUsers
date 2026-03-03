@@ -17,7 +17,7 @@ class UserDeleter
     ) {
     }
 
-    public function deleteUserById(
+    public function deleteUser(
         User $user,
     ): void {
         $userId = $user->getId();
