@@ -11,6 +11,8 @@ use Doctrine\ORM\EntityRepository;
 
 class UserRepository
 {
+   private EntityRepository $entityRepository;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
     ) {
