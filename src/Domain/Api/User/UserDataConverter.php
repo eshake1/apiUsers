@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Api\User;
 
 use App\Domain\Api\Dto\User\Response\UserResponse;
