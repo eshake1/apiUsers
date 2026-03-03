@@ -154,7 +154,7 @@ class UsersApiController extends AbstractController
             throw new BadRequestException('User not found by id "' . $deleteUserRequest->id . '"');
         }
 
-        $userDeleter->deleteUserById($user);
+        $userDeleter->deleteUser($user);
 
         return $this->json([
             'data' => [
